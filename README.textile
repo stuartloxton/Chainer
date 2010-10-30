@@ -1,0 +1,31 @@
+h1. Chainer
+
+Chainer is a small PHP library that makes functional style programming easier, as well as including a set of functions for data analysis.
+
+h3. Features
+
+* Implements itself as an array (allows for $chain[0])
+* Implements itself as an Iterator (allows for foreach)
+* Supports chaining any class that implements Iterator
+* Supports PHP5+ (Recommended 5.3+)
+
+h3. Examples
+
+<pre>
+<code>
+<?php
+
+	include 'chain.php';
+
+	$data = array(0, 1, 2, 3, 4);
+	Chain($data)->map(function($x) { return $x * $x; })->reduce(function($sum, $x) { return $sum + $x; }, 0);
+	// Squares each function and then sums it (in a verbose way)
+	
+	$numbers = array(14, 12, 17, 19);
+	$odd = Chain($numbers)->all(function($x) { return $x & 1; });
+	foreach( $odd as $value ) {
+		echo $odd." is odd\n";
+	}
+?>
+</code>
+</pre>
