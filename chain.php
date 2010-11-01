@@ -4,6 +4,19 @@ class Chain implements ArrayAccess, Iterator {
 	
 	private $data;
 	
+	static $aliases = array(
+					'inject' => 'reduce',
+					'foldl' => 'reduce',
+					
+					'foldr' => 'reduceRight',
+					
+					'filter' => 'select',
+					
+					'every' => 'all',
+					'some' => 'any',
+					'contains' => 'include'
+				);
+	
 	public function __construct($data) {
 		$this->data = $data;
 	}
@@ -12,28 +25,29 @@ class Chain implements ArrayAccess, Iterator {
 	 * Functional Wrappers
 	 ********************/
 	
-	function map($function) {
-		foreach( $this->data as $key => &$value ) {
-			$value = call_user_func($function, $value);
+	private function map($function) {
+		$new = array();
+		foreach( $this->data as $key => $value ) {
+			$new[$key] = call_user_func($function, $value);
 		}
-		return $this;
+		return Chain($new);
 	}
 	
-	function reduce($function, $memo) {
+	private function reduce($function, $memo) {
 		foreach( $this->data as $value ) {
 			$memo = call_user_func($function, $memo, $value);
 		}
-		return $memo;
+		return Chain($memo);
 	}
 	
-	function reduceRight($function, $memo) {
+	private function reduceRight($function, $memo) {
 		$this->data = array_reverse($this->data);
 		$return = $this->reduce($function, $memo);
 		$this->data = array_reverse($this->data);
-		return $return;
+		return Chain($return);
 	}
 	
-	function detect($function) {
+	private function detect($function) {
 		foreach( $this->data as $value ) {
 			if( $function($value) )
 				return $value;
@@ -41,32 +55,57 @@ class Chain implements ArrayAccess, Iterator {
 		return false;
 	}
 	
-	function select($function) {
+	private function select($function) {
 		$return = array();
 		foreach( $this->data as $value ) {
 			if( $function($value) )
 				$return[] = $value;
 		}
-		return $return;
+		return Chain($return);
 	}
 	
-	function reject($function) {
+	private function reject($function) {
 		$return = array();
 		foreach( $this->data as $value ) {
 			if( !$function($value) )
 				$return[] = $value;
 		}
-		return $return;
+		return Chain($return);
 	}
 	
-	function all($function) {
-		$rejected = $this->reject($function);
+	private function all($function) {
+		$rejected = $this->reject($function)->toArray();
 		return !$rejected;
 	}
 	
-	function any($function) {
+	private function any($function) {
 		$found = (bool) $this->detect($function);
 		return $found;
+	}
+	
+	private function pluck($key=false) {
+		$return = array();
+		foreach( $this->data as $value ) {
+			if( is_array($value) && isset($value[$key]) )
+				$return[] = $value[$key];
+			else if( is_object($value) && isset($value->$key) )
+				$return[] = $value->$key;
+		}
+		return Chain($return);
+	}
+	
+	private function compact() {
+		// Removes all false evaluating items
+		$compacted = array();
+		foreach( $this->data as $key => $value ) {
+			if( $value )
+				$compacted[] = $value;
+		}
+		return Chain($compacted);
+	}
+	
+	private function flatten() {
+		
 	}
 	
 	/*******************
@@ -108,11 +147,42 @@ class Chain implements ArrayAccess, Iterator {
 		return isset($this->data[$this->key]);
 	}
 	
+	/**********************
+	 * Casting Functions
+	 *********************/
+	
+	public function toArray() {
+		return (array) $this->data;
+	}
+	
+	/**********************
+	 * Magic Methods
+	 *********************/
+	
+	function __call($method, $arguments) {		
+		$method = strtolower($method);
+		
+		if( isset(self::$aliases[$method]) )
+			$method = self::$aliases[$method];
+			
+		if( method_exists($this, $method) )
+			return call_user_func_array(array($this, $method), $arguments);
+		else
+			throw new Exception('Method '.$method.' does not exist.');
+	}
+	
+	public static function __callStatic($method, $arguments) {
+		$data = array_shift($arguments);
+		$chain = Chain($data);
+		$return = call_user_func_array( array($chain, $method), $arguments );
+		return ($return instanceof Chain) ? $return->toArray() : $return;
+	}
+	
 }
 
 function Chain($data) {
-	return new Chain($data);
+	if( is_array($data) || $data instanceof Traversable )
+		return new Chain($data);
+	else
+		return $data;
 }
-
-$data = array(0, 1, 2, 3, 4);
-print_r(Chain($data)->map(function($x) { return $x * $x; })->reduce(function($sum, $x) { return $sum + $x; }, 0));

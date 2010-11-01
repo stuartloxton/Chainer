@@ -8,6 +8,8 @@ h3. Features
 * Implements itself as an Iterator (allows for foreach)
 * Supports chaining any class that implements Iterator
 * Supports PHP5+ (Recommended 5.3+)
+* Side-effect free, each call returns a new instance.
+* Supports static calling syntax
 
 h3. Examples
 
@@ -15,17 +17,55 @@ h3. Examples
 <code>
 <?php
 
-	include 'chain.php';
+include 'chain.php';
 
-	$data = array(0, 1, 2, 3, 4);
-	Chain($data)->map(function($x) { return $x * $x; })->reduce(function($sum, $x) { return $sum + $x; }, 0);
-	// Squares each function and then sums it (in a verbose way)
-	
-	$numbers = array(14, 12, 17, 19);
-	$odd = Chain($numbers)->all(function($x) { return $x & 1; });
-	foreach( $odd as $value ) {
-		echo $odd." is odd\n";
-	}
+/*********************
+ * 3 Line Demo
+ ********************/
+
+$data = array(0, 1, 2, 3, 4);
+Chain($data)
+	->map(function($x) { return $x * $x; })
+	->reduce(function($sum, $x) { return $sum + $x; }, 0);
+// Squares each function and then sums it (in a verbose way)
+
+$result = array(); // Array of database rows
+
+
+
+/*********************
+ * Real World Demo
+ ********************/
+
+// Normalize data (run on all rows)
+$results = Chain($result)->map(function($row) {
+	$row->date_created = strtotime($row->date_created)
+});
+
+// Select all featured ($results is left un-touched)
+$featured = $results->select(function($x) {
+	return $x->featured;
+});
+
+// Get all id attributes
+$showing = $results->pluck('id');
+
+
+
+/*********************
+ * Static Calls
+ ********************/
+// Used if you only want to use one method
+// all chainable functions available, first
+// paramater is what the contuctor normally
+// takes
+
+$data = array('one', 'two', 'three');
+
+$static = Chain::map($data, 'strtoupper');
+$method = Chain($data)->map('strtoupper')->toArray();
+// toArary is not nessesarily needed (only in case of an array cast)
+
 ?>
 </code>
 </pre>

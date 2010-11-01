@@ -1,5 +1,7 @@
 <?php
 
+error_reporting(E_ALL | E_STRICT);
+
 include dirname(__FILE__).'/../chain.php';
 
 class ChainTest extends PHPUnit_Framework_TestCase
@@ -32,6 +34,15 @@ class ChainTest extends PHPUnit_Framework_TestCase
 		$this->assertEquals( $upper[0], 'ONE' );
 		$this->assertEquals( $upper[1], 'TWO' );
 		$this->assertEquals( $upper[2], 'THREE' );
+	}
+	
+	public function testMapEffect() {
+		$numbers = Chain(array(1,2,3));
+		$squared = $numbers->map(function($x) { return $x * $x; });
+		
+		$this->assertEquals( array(1,2,3), $numbers->toArray() );
+		$this->assertEquals( array(1, 4, 9), $squared->toArray() );
+		
 	}
 	
 	public function testReduce() {
@@ -73,7 +84,7 @@ class ChainTest extends PHPUnit_Framework_TestCase
 		
 		$odd = $chain->select(function($val) {
 			return $val & 1;
-		});
+		})->toArray();
 		
 		$this->assertEquals( $odd, array(13, 19) );
 	}
@@ -82,7 +93,7 @@ class ChainTest extends PHPUnit_Framework_TestCase
 		$chain = Chain(array(12, 14, 13, 16, 19));
 		$even = $chain->reject(function($val) {
 			return $val & 1;
-		});
+		})->toArray();
 		
 		$this->assertEquals( $even, array(12, 14, 16) );
 	}
@@ -128,5 +139,80 @@ class ChainTest extends PHPUnit_Framework_TestCase
 		$this->assertTrue( $has_odd->any($odd) );
 		$this->assertFalse( $no_odd->any($odd) );
 	}
+	
+	function testPluck() {
+		$person_1 = array('Name' => 'Tom');
+		$person_2 = array('Name' => 'Nemo', 'Type' => 'Fish');
+		$person_3 = array('Type' => 'Unknown');
+		
+		$array_data = array($person_1, $person_2, $person_3);
+		$object_data = array( (object) $person_1, (object) $person_2, (object) $person_3);
+		
+		$array_names = Chain($array_data)->pluck('Name');
+		$object_names = Chain($object_data)->pluck('Name');
+		
+		// Test Array + Object access
+		$this->assertEquals( 'Tom', $array_names[0] );
+		$this->assertEquals( 'Nemo', $array_names[1] );
+		$this->assertEquals( 'Tom', $object_names[0] );
+		$this->assertEquals( 'Nemo', $object_names[1] );
+		
+		// Test Raw toArray
+		$this->assertEquals( array('Tom', 'Nemo'), $array_names->toArray() );
+		$this->assertEquals( array('Tom', 'Nemo'), $object_names->toArray() );
+		
+		// test ignores blank names
+		$this->assertFalse( isset($array_names[2]) );
+		$this->assertFalse( isset($object_names[2]) );
+		
+		// Test chainability
+		$this->assertEquals( array('TOM', 'NEMO'), $array_names->map('strtoupper')->toArray() );
+	}
+	
+	function testCompact() {
+		$array = array(1, 0, '', null, 4, 7, 8);
+		$chain = Chain($array);
+		
+		$this->assertEquals( array(1, 4, 7, 8), $chain->compact()->toArray() );
+		$this->assertEquals( 4, $chain->compact()->offsetGet(1) );
+	}
+	
+	
+	
+	
+	
+	
+	/*******************
+	 * UTILITY TESTS
+	 ******************/
+	
+	function testAliases() {
+		$chain = Chain(array(1, 2, 3, 4));
+		
+		$reduced = $chain->reduce(function($sum, $x) { 
+			return $sum + $x;
+		}, 0);
+		
+		$folded_left = $chain->foldl(function($sum, $x) { 
+			return $sum + $x;
+		}, 0);
+		
+		$this->assertEquals( $reduced, $folded_left );
+		
+	}
+	
+	function testStatic() {
+		$static = Chain::map(array(1,2,3), function($x) {
+			return $x * $x;
+		});
+		
+		$method = Chain(array(1,2,3))->map(function($x) {
+			return $x * $x;
+		})->toArray();
+		
+		$this->assertEquals( $static, $method );
+	}
+	
+	
 	
 }
